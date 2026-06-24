@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imaginarium KPI Park - Interactive 3D Experience</title>
+    <!-- Tailwind CSS for modern, responsive UI design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D graphics rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome for cute icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            overflow: hidden;
+            background-color: #0b0f19;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Glowing effects for gamified look */
+        .neon-glow-p1 { filter: drop-shadow(0 0 8px #3b82f6); }
+        .neon-glow-p2 { filter: drop-shadow(0 0 8px #10b981); }
+        .neon-glow-p3 { filter: drop-shadow(0 0 8px #8b5cf6); }
+        .neon-glow-p4 { filter: drop-shadow(0 0 8px #f59e0b); }
+        .neon-glow-p5 { filter: drop-shadow(0 0 8px #ec4899); }
+
+        /* Dialog typing cursor effect */
+        .cursor-blink::after {
+            content: '█';
+            animation: blink 0.8s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* Smooth floating animation for virtual keys */
+        .float-bounce {
+            animation: bounce 2s infinite ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+    </style>
+</head>
+<body class="relative">
+
+    <div id="loading-screen" class="absolute inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center text-white transition-opacity duration-1000">
+        <div class="text-center p-8 max-w-md">
+            <div class="w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+            <h1 class="text-3xl font-bold mb-2 tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-500">IMAGINARIUM PARK</h1>
+            <p class="text-slate-400 text-sm mb-4 uppercase tracking-widest">Generating 3D Immersive KPI World...</p>
+            <div class="w-full bg-slate-800 rounded-full h-2">
+                <div class="bg-gradient-to-r from-blue-500 to-pink-500 h-2 rounded-full animate-[pulse_1s_infinite]" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Brand Header -->
+    <div class="absolute top-4 left-4 z-40 bg-slate-900/95 backdrop-blur-md border-2 border-indigo-500/30 rounded-2xl p-4 flex items-center gap-4 shadow-2xl max-w-sm">
+        <img src="image_281f65.png" alt="Oldham College Logo" class="h-10 object-contain bg-white/10 rounded-lg p-1" onerror="this.src='https://placehold.co/100x40/1e293b/ffffff?text=Imaginarium'">
+        <div>
+            <h2 class="text-lg font-bold text-white leading-tight tracking-wide">Imaginarium Park</h2>
+            <p class="text-xs text-cyan-400 font-semibold tracking-wider uppercase">26-27 KPI Adventures</p>
+        </div>
+    </div>
+
+    <!-- Tutorial Guide -->
+    <div id="tutorial-card" class="absolute bottom-24 left-4 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-2xl p-4 text-white shadow-xl max-w-xs transition-opacity duration-500">
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-pink-400 uppercase tracking-widest">Controls</span>
+            <button onclick="document.getElementById('tutorial-card').style.display='none'" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-2 text-xs text-slate-300">
+            <div class="flex items-center gap-2"><kbd class="bg-slate-800 px-2 py-1 rounded border border-slate-600 font-bold">W A S D</kbd> or <kbd class="bg-slate-800 px-2 py-1 rounded border border-slate-600 font-bold">Arrows</kbd> to Move</div>
+            <div class="flex items-center gap-2"><kbd class="bg-slate-800 px-2.5 py-1 rounded border border-slate-600 font-bold">E</kbd> or <kbd class="bg-slate-800 px-1 py-1 rounded border border-slate-600 font-bold">SPACE</kbd> to talk to NPCs</div>
+            <div class="text-cyan-400 font-semibold mt-2"><i class="fa-solid fa-circle-info mr-1"></i> Approach any coloured stand and click "Talk"!</div>
+        </div>
+    </div>
+
+    <!-- Minimap Radar Overlay -->
+    <div class="absolute top-4 right-4 z-40 bg-slate-900/90 backdrop-blur-md border-2 border-slate-700/60 rounded-2xl p-3 shadow-2xl flex flex-col items-center">
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Park Radar Map</div>
+        <div class="relative w-32 h-32 bg-slate-950 rounded-full border border-slate-800 overflow-hidden">
+            <!-- Radar sweep effect -->
+            <div class="absolute inset-0 bg-[radial-gradient(circle,rgba(59,130,246,0.1)_0%,transparent_70%)]"></div>
+            <div class="absolute inset-0 border border-slate-800/50 rounded-full scale-75"></div>
+            <div class="absolute inset-0 border border-slate-800/50 rounded-full scale-50"></div>
+            <div class="absolute inset-0 border border-slate-800/50 rounded-full scale-25"></div>
+            <canvas id="minimap-canvas" width="128" height="128" class="absolute inset-0"></canvas>
+        </div>
+    </div>
+
+    <!-- Interactive Dialogue Panel (Upgraded to FULL SCREEN layout for ultimate showcase focus) -->
+    <div id="dialogue-panel" class="hidden fixed inset-0 z-50 bg-slate-950/98 text-white p-6 md:p-12 flex flex-col justify-center items-center overflow-y-auto transform transition-all duration-300 scale-95 opacity-0">
+        <div class="w-full max-w-7xl flex flex-col h-full justify-between gap-6">
+            
+            <!-- Top Status Bar -->
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-3">
+                    <span id="pillar-id-badge" class="text-xs md:text-sm font-bold px-4 py-1.5 rounded-full text-white shadow-md">PILLAR 1</span>
+                    <h2 class="text-sm md:text-base font-bold text-slate-400 tracking-wider">IMAGINARIUM STRATEGIC HUB</h2>
+                </div>
+                <button id="close-dialogue-btn" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all border border-slate-700 flex items-center gap-2">
+                    <span>Return to Park</span>
+                    <kbd class="hidden md:inline bg-slate-950 px-2 py-0.5 rounded border border-slate-700 text-[10px]">ESC</kbd>
+                </button>
+            </div>
+
+            <!-- Core Information Arena Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 my-auto items-center">
+                <!-- Left Block: Portrait, NPC Persona and Typewriter text -->
+                <div class="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left gap-6">
+                    <div id="npc-portrait-container" class="relative w-36 h-36 md:w-48 md:h-48 rounded-3xl flex items-center justify-center border-4 shadow-2xl">
+                        <div id="npc-portrait-face" class="text-7xl md:text-9xl">🤖</div>
+                        <div id="npc-portrait-badge" class="absolute -bottom-3 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-white shadow-md">NPC</div>
+                    </div>
+                    <div>
+                        <h3 id="npc-name" class="text-3xl md:text-4xl font-black tracking-wide mb-1 text-white">Pillar Guard</h3>
+                        <p id="npc-title" class="text-xs text-cyan-400 font-bold tracking-widest uppercase">Strategic Host</p>
+                    </div>
+                    <div id="dialogue-text" class="text-slate-200 text-lg md:text-xl font-medium leading-relaxed max-w-lg cursor-blink">
+                        Preparing to fetch data...
+                    </div>
+                </div>
+
+                <!-- Right Block: High-Contrast Target Statement and Quest Grid -->
+                <div class="lg:col-span-7 flex flex-col gap-8">
+                    <!-- Target Highlight Box -->
+                    <div class="p-6 md:p-8 bg-slate-900 border-2 border-indigo-500/50 rounded-3xl shadow-2xl">
+                        <span class="text-xs font-black text-indigo-400 tracking-widest uppercase block mb-3">KEY PERFORMANCE INDICATOR TARGET</span>
+                        <div id="dialogue-target-box" class="text-2xl md:text-3xl font-black text-white leading-snug">
+                            Target details placeholder
+                        </div>
+                    </div>
+
+                    <!-- Quests Checklist Grid -->
+                    <div class="flex flex-col gap-4">
+                        <span class="text-xs font-black text-slate-400 tracking-widest uppercase">IMPLEMENTATION STRATEGIES</span>
+                        <div id="dialogue-quests-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Control/Acknowledge Panel -->
+            <div class="flex flex-col sm:flex-row justify-between items-center border-t border-slate-800 pt-4 gap-4">
+                <p class="text-xs text-slate-500">Imaginarium Immersive Learning Framework © 2026</p>
+                <button id="acknowledge-btn" class="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-600 hover:to-indigo-700 text-white text-base font-bold rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Acknowledge & Close
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Active Proximity Interaction Prompt -->
+    <div id="interaction-prompt" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120px] z-30 bg-slate-900/90 border border-cyan-400/50 rounded-2xl px-5 py-3 shadow-2xl flex flex-col items-center gap-1.5 animate-pulse">
+        <span class="text-[10px] font-bold text-cyan-400 tracking-widest uppercase">Proximity Detected</span>
+        <div class="flex items-center gap-2">
+            <button id="mobile-talk-btn" class="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold px-5 py-2 rounded-xl text-sm flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition-transform">
+                <i class="fa-solid fa-comments"></i>
+                <span>Talk to <span id="prompt-npc-name">NPC</span></span>
+            </button>
+            <kbd class="hidden md:inline bg-slate-800 text-slate-200 border border-slate-600 px-2 py-1 rounded font-bold text-sm">E</kbd>
+        </div>
+    </div>
+
+    <!-- Mobile Virtual Joystick Container -->
+    <div id="mobile-joystick-zone" class="absolute bottom-6 left-6 z-40 w-36 h-36 bg-slate-950/40 backdrop-blur-sm border-2 border-slate-800/80 rounded-full flex items-center justify-center md:hidden touch-none">
+        <div id="joystick-handle" class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-700 border-2 border-white/20 rounded-full shadow-lg transition-transform duration-75 active:scale-95"></div>
+    </div>
+
+    <!-- Complete 3D WebGL Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        /* ==========================================================================
+           1. DEFINE KPI RESEARCH & PILLAR DATA STRATEGIES (BRITISH ENGLISH TRANSLATIONS)
+           ========================================================================== */
+        const pillarData = [
+            {
+                id: 1,
+                name: "Engagement",
+                npcName: "Aero",
+                npcIcon: "🤖",
+                npcTitle: "Digital Guide",
+                color: "#3b82f6", // Blue
+                target: "Every group experiences curriculum-embedded immersive learning at least once.",
+                greeting: "System Online! Aero here, your high-voltage guide to connection. My core directive is simple: plug everyone into the future! Let's get every department connected to the immersive grid so nobody misses out.",
+                quests: [
+                    { title: "Identify Immersive Champions", sub: "Nominate curriculum advocates in all faculties" },
+                    { title: "Launch Custom Staff CPD", sub: "Deliver tailored upskilling bootcamps" }
+                ]
+            },
+            {
+                id: 2,
+                name: "Impact",
+                npcName: "Sage",
+                npcIcon: "🧙",
+                npcTitle: "Knowledge Expert",
+                color: "#10b981", // Green
+                target: "Evidence-informed immersive learning outcomes mapped directly to student success.",
+                greeting: "Ah, welcome traveller. I am Sage. In the Imaginarium, we don't just dream of innovation—we measure it. Let us analyse the pathways of success and map our actual achievements with absolute precision.",
+                quests: [
+                    { title: "Define Evaluation Framework", sub: "Design concrete metrics for assessment" },
+                    { title: "Structure Learner Feedback", sub: "Automate and categorise pupil opinions" },
+                    { title: "Map Curriculum Outcomes", sub: "Link VR exercises directly with modules" },
+                    { title: "Compile Case Studies", sub: "Author success articles for publication" }
+                ]
+            },
+            {
+                id: 3,
+                name: "Inclusion",
+                npcName: "Iris",
+                npcIcon: "🦊",
+                npcTitle: "Accessibility Officer",
+                color: "#8b5cf6", // Purple
+                target: "Accessible immersive learning experiences designed for all learners' needs.",
+                greeting: "Hello, friendly face! Iris here. In our playground, we build bridges, not barriers. No matter how you learn or what tools you use, we want to make our digital worlds accessible, comfortable, and cosy for everyone.",
+                quests: [
+                    { title: "Partner with Assistive Tech", sub: "Joint design projects for neurodiversity" },
+                    { title: "Coordinate Staff CPD", sub: "Build high-accessibility empathy pathways" },
+                    { title: "Enforce Accessible Colour Design", sub: "Provide high contrast presets in simulations" },
+                    { title: "Mandatory CC & Subtitles", sub: "Incorporate spatial subtitles in virtual spaces" }
+                ]
+            },
+            {
+                id: 4,
+                name: "Learner Voice",
+                npcName: "Echo",
+                npcIcon: "🎤",
+                npcTitle: "Showcase Director",
+                color: "#f59e0b", // Amber
+                target: "Student-led immersive projects guiding the future of creative development.",
+                greeting: "Hey there! Echo in the house! The students are the true heroes here, cooking up wild creative worlds. Let me show you how our apprentice developers are taking absolute control of the engine!",
+                quests: [
+                    { title: "Map Course Opportunities", sub: "Brainstorm project designs with tutor circles" },
+                    { title: "Conduct Dev Workshops", sub: "Run game engine bootcamp sessions (PD+)" },
+                    { title: "Hire Student Developers", sub: "Embed apprentices into Imaginarium core team" },
+                    { title: "Host Immersive Showcase", sub: "Run the massive end-of-year public festival" }
+                ]
+            },
+            {
+                id: 5,
+                name: "Influence",
+                npcName: "Nova",
+                npcIcon: "🚀",
+                npcTitle: "Regional Ambassador",
+                color: "#ec4899", // Pink
+                target: "Become the regional example through partnerships and external dissemination.",
+                greeting: "Hello, VIP! Nova here, broadcasting our success story to the entire region. The Imaginarium is making massive waves, and it's time to show the country how we pioneer educational technology!",
+                quests: [
+                    { title: "Draft Comprehensive Case Studies", sub: "Document blueprints, feedback & impacts" },
+                    { title: "Submit Award Nominations", sub: "Enter major regional and global educational prizes" },
+                    { title: "Present at Conferences", sub: "Keynote presentation at major UK EdTech summits" }
+                ]
+            }
+        ];
+
+        /* ==========================================================================
+           2. AUDIO EFFECT SYNTHESIZER (NATIVE WEB AUDIO API)
+           ========================================================================== */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playChirp(type) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'step') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.15);
+                } else if (type === 'talk') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.25);
+                } else if (type === 'type') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300 + Math.random() * 200, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.05);
+                } else if (type === 'close') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.25);
+                }
+            } catch (e) {
+                // Audio Context fallback if blocked
+            }
+        }
+
+        /* ==========================================================================
+           3. THREE.JS GAME ENGINE SETUP (SCENE, LIGHTING, CAMERA)
+           ========================================================================== */
+        const canvas = document.getElementById('game-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#0b0f19');
+        scene.fog = new THREE.FogExp2('#0b0f19', 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 18, 22);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight('#1e293b', 0.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight('#c084fc', 0.8);
+        sunLight.position.set(20, 40, 20);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 100;
+        const d = 30;
+        sunLight.shadow.camera.left = -d;
+        sunLight.shadow.camera.right = d;
+        sunLight.shadow.camera.top = d;
+        sunLight.shadow.camera.bottom = -d;
+        scene.add(sunLight);
+
+        // Subtly coloured point lights to simulate festival ambiance
+        const festivalLight1 = new THREE.PointLight('#3b82f6', 1, 30);
+        festivalLight1.position.set(-15, 5, -15);
+        scene.add(festivalLight1);
+
+        const festivalLight2 = new THREE.PointLight('#ec4899', 1, 30);
+        festivalLight2.position.set(15, 5, 15);
+        scene.add(festivalLight2);
+
+        /* ==========================================================================
+           4. PROCEDURAL WORLD GENERATION
+           ========================================================================== */
+        // Ground Mesh
+        const groundGeo = new THREE.PlaneGeometry(100, 100);
+        const groundMat = new THREE.MeshStandardMaterial({ 
+            color: '#111827', 
+            roughness: 0.8, 
+            metalness: 0.1 
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Path Rings to guide players
+        const pathwayGeo = new THREE.RingGeometry(18, 20, 64);
+        const pathwayMat = new THREE.MeshBasicMaterial({ color: '#1e293b', side: THREE.DoubleSide });
+        const pathway = new THREE.Mesh(pathwayGeo, pathwayMat);
+        pathway.rotation.x = -Math.PI / 2;
+        pathway.position.y = 0.01;
+        scene.add(pathway);
+
+        // Stand / Booth procedural model constructor (British English properties)
+        function createPillarBooth(colour, angle) {
+            const group = new THREE.Group();
+            
+            // Central base
+            const baseGeo = new THREE.CylinderGeometry(3, 3.2, 0.5, 8);
+            const baseMat = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.5 });
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.y = 0.25;
+            base.receiveShadow = true;
+            group.add(base);
+
+            // Colourful Counter top
+            const counterGeo = new THREE.CylinderGeometry(2.5, 2.7, 0.8, 8);
+            const counterMat = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.3 });
+            const counter = new THREE.Mesh(counterGeo, counterMat);
+            counter.position.y = 1;
+            counter.castShadow = true;
+            counter.receiveShadow = true;
+            group.add(counter);
+
+            // Support Pillars (cyber theme)
+            const pillarGeo = new THREE.BoxGeometry(0.15, 3.5, 0.15);
+            const pillarMat = new THREE.MeshStandardMaterial({ color: '#4b5563', metalness: 0.8, roughness: 0.2 });
+            const offset = 1.8;
+            const pillarCoords = [
+                { x: offset, z: offset },
+                { x: -offset, z: offset },
+                { x: offset, z: -offset },
+                { x: -offset, z: -offset }
+            ];
+            pillarCoords.forEach(coord => {
+                const p = new THREE.Mesh(pillarGeo, pillarMat);
+                p.position.set(coord.x, 2, coord.z);
+                p.castShadow = true;
+                group.add(p);
+            });
+
+            // Colourful conical roof
+            const roofGeo = new THREE.ConeGeometry(3.5, 1.8, 8);
+            const roofMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.5 });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 4.3;
+            roof.castShadow = true;
+            group.add(roof);
+
+            // Colourful glowing trim under the roof
+            const trimGeo = new THREE.CylinderGeometry(3.1, 3.1, 0.2, 8);
+            const trimMat = new THREE.MeshBasicMaterial({ color: colour });
+            const trim = new THREE.Mesh(trimGeo, trimMat);
+            trim.position.y = 3.5;
+            group.add(trim);
+
+            // Floating Holographic Banner Sign above booth
+            const signGeo = new THREE.BoxGeometry(1.8, 0.8, 0.1);
+            const signMat = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.7 });
+            const sign = new THREE.Mesh(signGeo, signMat);
+            sign.position.set(0, 5, 0);
+            group.add(sign);
+
+            // Save elements to group reference for animated rotation/glow later
+            group.userData = { colour: colour, sign: sign };
+
+            // Set Booth position along the ring
+            const radius = 25;
+            group.position.x = Math.sin(angle) * radius;
+            group.position.z = Math.cos(angle) * radius;
+            
+            // Rotate Booth face towards centre
+            group.lookAt(0, 0, 0);
+            
+            scene.add(group);
+            return group;
+        }
+
+        // Generate 5 KPI Booths
+        const booths = [];
+        pillarData.forEach((pillar, index) => {
+            const angle = (index / 5) * Math.PI * 2;
+            const booth = createPillarBooth(pillar.color, angle);
+            booths.push({
+                ...pillar,
+                group: booth,
+                x: booth.position.x,
+                z: booth.position.z
+            });
+        });
+
+        // Helper to spawn low-poly futuristic trees
+        function spawnTree(x, z) {
+            const treeGroup = new THREE.Group();
+            
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 3, 5);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: '#374151', roughness: 0.9 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 1.5;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const foliageColors = ['#4f46e5', '#3b82f6', '#06b6d4'];
+            const chosenColor = foliageColors[Math.floor(Math.random() * foliageColors.length)];
+
+            const foliageGeo = new THREE.DodecahedronGeometry(1.8, 1);
+            const foliageMat = new THREE.MeshStandardMaterial({ color: chosenColor, roughness: 0.6 });
+            const foliage = new THREE.Mesh(foliageGeo, foliageMat);
+            foliage.position.y = 4;
+            foliage.castShadow = true;
+            treeGroup.add(foliage);
+
+            treeGroup.position.set(x, 0, z);
+            scene.add(treeGroup);
+        }
+
+        // Populate Park with trees and decorative columns
+        for(let i = 0; i < 28; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = 32 + Math.random() * 15;
+            const tx = Math.sin(angle) * r;
+            const tz = Math.cos(angle) * r;
+            spawnTree(tx, tz);
+        }
+
+        /* ==========================================================================
+           7.5 GAMIFIED VISUAL PARTICLE ENGINE
+           ========================================================================== */
+        const activeParticles = [];
+
+        function triggerPillarEffect(x, y, z, color, type) {
+            const particleCount = 24;
+            
+            // Trigger dynamic synthesizer swell
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.45);
+            } catch (e) {}
+
+            for (let i = 0; i < particleCount; i++) {
+                let geo;
+                let mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1.0 });
+
+                // Choose custom meshes based on pillar theme
+                if (type === 1) { // Engagement: Cyber Grid Boxes
+                    geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+                } else if (type === 2) { // Impact: Analytical Pyramids
+                    geo = new THREE.ConeGeometry(0.15, 0.4, 4);
+                } else if (type === 3) { // Inclusion: Soft Spheres
+                    geo = new THREE.SphereGeometry(0.18, 6, 6);
+                } else if (type === 4) { // Learner Voice: Gold Confetti
+                    geo = new THREE.BoxGeometry(0.25, 0.05, 0.25);
+                } else { // Influence: Supernova Octahedrons
+                    geo = new THREE.OctahedronGeometry(0.25, 0);
+                }
+
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, z);
+                scene.add(mesh);
+
+                let vx = 0, vy = 0, vz = 0;
+
+                // Unique kinematics per pillar
+                if (type === 1) { // Expanding grid rings
+                    const angle = (i / particleCount) * Math.PI * 2;
+                    vx = Math.sin(angle) * 4.5;
+                    vy = (Math.random() - 0.2) * 2;
+                    vz = Math.cos(angle) * 4.5;
+                } else if (type === 2) { // Rising charts
+                    vx = (Math.random() - 0.5) * 1.5;
+                    vy = 3.5 + Math.random() * 3.5;
+                    vz = (Math.random() - 0.5) * 1.5;
+                } else if (type === 3) { // Bubble sphere dispersion
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+                    vx = Math.sin(phi) * Math.cos(theta) * 3;
+                    vy = Math.sin(phi) * Math.sin(theta) * 3 + 1;
+                    vz = Math.cos(phi) * 3;
+                } else if (type === 4) { // Upward fountain
+                    vx = (Math.random() - 0.5) * 4;
+                    vy = 5 + Math.random() * 4;
+                    vz = (Math.random() - 0.5) * 4;
+                } else { // Burst firework sphere
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+                    vx = Math.sin(phi) * Math.cos(theta) * 6.5;
+                    vy = Math.sin(phi) * Math.sin(theta) * 6.5 + 3;
+                    vz = Math.cos(phi) * 6.5;
+                }
+
+                activeParticles.push({
+                    mesh: mesh,
+                    vx: vx,
+                    vy: vy,
+                    vz: vz,
+                    life: 1.0,
+                    decay: 0.7 + Math.random() * 0.9,
+                    type: type
+                });
+            }
+        }
+
+        // Spawn a centerpiece "Imaginarium Portal Structure" at the exact centre (0,0,0)
+        const centerGroup = new THREE.Group();
+        const pedestalGeo = new THREE.CylinderGeometry(4, 4.5, 1, 8);
+        const pedestalMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.4 });
+        const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+        pedestal.position.y = 0.5;
+        pedestal.receiveShadow = true;
+        centerGroup.add(pedestal);
+
+        // Core Glowing Crystal Prism
+        const crystalGeo = new THREE.OctahedronGeometry(2, 0);
+        const crystalMat = new THREE.MeshStandardMaterial({ 
+            color: '#a855f7', 
+            emissive: '#4c1d95',
+            roughness: 0.1, 
+            metalness: 0.9 
+        });
+        const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+        crystal.position.y = 3.5;
+        crystal.castShadow = true;
+        centerGroup.add(crystal);
+        scene.add(centerGroup);
+
+        /* ==========================================================================
+           5. NPC CHARACTER GENERATION
+           ========================================================================== */
+        const npcs = [];
+        
+        function createNPC(colour, x, z, icon, name, index) {
+            const npcGroup = new THREE.Group();
+
+            // Hover Base Plate
+            const floatPlateGeo = new THREE.CylinderGeometry(0.8, 0.9, 0.15, 6);
+            const floatPlateMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.4 });
+            const plate = new THREE.Mesh(floatPlateGeo, floatPlateMat);
+            plate.position.y = 0.1;
+            npcGroup.add(plate);
+
+            // NPC Body Core
+            const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: colour, roughness: 0.3, metalness: 0.4 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            npcGroup.add(body);
+
+            // NPC Head Sphere
+            const headGeo = new THREE.SphereGeometry(0.45, 8, 8);
+            const headMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.2 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.85;
+            head.castShadow = true;
+            npcGroup.add(head);
+
+            // Cybernetic glowing visor eyes
+            const visorGeo = new THREE.BoxGeometry(0.6, 0.18, 0.2);
+            const visorMat = new THREE.MeshBasicMaterial({ color: colour });
+            const visor = new THREE.Mesh(visorGeo, visorMat);
+            visor.position.set(0, 1.85, 0.38);
+            npcGroup.add(visor);
+
+            // "Active Indicator" Floating exclamation bubble above NPC head
+            const markerGeo = new THREE.ConeGeometry(0.2, 0.6, 4);
+            const markerMat = new THREE.MeshBasicMaterial({ color: colour });
+            const marker = new THREE.Mesh(markerGeo, markerMat);
+            marker.position.y = 2.8;
+            npcGroup.add(marker);
+
+            // Assemble and orient position right in front of the respective stand
+            npcGroup.position.set(x * 0.8, 0, z * 0.8);
+            npcGroup.lookAt(x, 1, z); // Make NPC look outward towards player approaching
+            scene.add(npcGroup);
+
+            return {
+                group: npcGroup,
+                marker: marker,
+                head: head,
+                icon: icon,
+                name: name,
+                index: index
+            };
+        }
+
+        // Instantiate NPCs correlating directly to our 5 booths
+        booths.forEach((booth, index) => {
+            const npc = createNPC(booth.color, booth.x, booth.z, booth.npcIcon, booth.npcName, index);
+            npcs.push(npc);
+        });
+
+        /* ==========================================================================
+           6. PLAYER CHARACTER CREATION & ANIMATION
+           ========================================================================== */
+        const playerGroup = new THREE.Group();
+
+        // Hover pad base
+        const pPadGeo = new THREE.CylinderGeometry(0.9, 1.0, 0.15, 8);
+        const pPadMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5 });
+        const pPad = new THREE.Mesh(pPadGeo, pPadMat);
+        pPad.position.y = 0.1;
+        playerGroup.add(pPad);
+
+        // Core Body
+        const pBodyGeo = new THREE.BoxGeometry(1.0, 1.3, 1.0);
+        const pBodyMat = new THREE.MeshStandardMaterial({ color: '#4f46e5', roughness: 0.4 });
+        const pBody = new THREE.Mesh(pBodyGeo, pBodyMat);
+        pBody.position.y = 0.9;
+        pBody.castShadow = true;
+        playerGroup.add(pBody);
+
+        // Friendly Visor Mask Face
+        const pHeadGeo = new THREE.SphereGeometry(0.55, 16, 16);
+        const pHeadMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.1 });
+        const pHead = new THREE.Mesh(pHeadGeo, pHeadMat);
+        pHead.position.set(0, 1.9, 0);
+        pHead.castShadow = true;
+        playerGroup.add(pHead);
+
+        const pVisorGeo = new THREE.BoxGeometry(0.8, 0.22, 0.2);
+        const pVisorMat = new THREE.MeshBasicMaterial({ color: '#22d3ee' });
+        const pVisor = new THREE.Mesh(pVisorGeo, pVisorMat);
+        pVisor.position.set(0, 1.9, 0.45);
+        playerGroup.add(pVisor);
+
+        // Creative tiny floating top-hat on the player
+        const hatBrimGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.05, 8);
+        const hatBrimMat = new THREE.MeshStandardMaterial({ color: '#0f172a' });
+        const hatBrim = new THREE.Mesh(hatBrimGeo, hatBrimMat);
+        hatBrim.position.y = 2.45;
+        playerGroup.add(hatBrim);
+
+        const hatGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 8);
+        const hatMat = new THREE.MeshStandardMaterial({ color: '#0f172a' });
+        const hat = new THREE.Mesh(hatGeo, hatMat);
+        hat.position.y = 2.75;
+        playerGroup.add(hat);
+
+        playerGroup.position.set(0, 0, 10); // Start player in front of centre
+        scene.add(playerGroup);
+
+        /* ==========================================================================
+           7. MOVEMENT CONTROLS & COLLISION PHYSICS
+           ========================================================================== */
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, e: false, ' ': false };
+        let activeNPC = null;
+        let dialogueOpen = false;
+
+        window.addEventListener('keydown', (e) => {
+            if (dialogueOpen && (e.key === 'Escape' || e.key === 'e' || e.key === 'E')) {
+                closeDialogue();
+                return;
+            }
+            if (keys[e.key] !== undefined) {
+                keys[e.key] = true;
+            }
+            if ((e.key === 'e' || e.key === 'E' || e.key === ' ') && activeNPC !== null && !dialogueOpen) {
+                openDialogue(activeNPC);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys[e.key] !== undefined) {
+                keys[e.key] = false;
+            }
+        });
+
+        const joystickZone = document.getElementById('mobile-joystick-zone');
+        const joystickHandle = document.getElementById('joystick-handle');
+        let joystickActive = false;
+        let joystickVector = { x: 0, y: 0 };
+        const maxJoystickDist = 50;
+
+        joystickZone.addEventListener('touchstart', (e) => {
+            joystickActive = true;
+            updateJoystick(e.targetTouches[0]);
+        });
+
+        joystickZone.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            e.preventDefault();
+            updateJoystick(e.targetTouches[0]);
+        });
+
+        joystickZone.addEventListener('touchend', () => {
+            joystickActive = false;
+            joystickVector = { x: 0, y: 0 };
+            joystickHandle.style.transform = 'translate(0px, 0px)';
+        });
+
+        function updateJoystick(touch) {
+            const rect = joystickZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > maxJoystickDist) {
+                dx = (dx / dist) * maxJoystickDist;
+                dy = (dy / dist) * maxJoystickDist;
+            }
+
+            joystickHandle.style.transform = `translate(${dx}px, ${dy}px)`;
+            // Normalize
+            joystickVector.x = dx / maxJoystickDist;
+            joystickVector.y = dy / maxJoystickDist;
+        }
+
+        // Tap interface triggers
+        document.getElementById('mobile-talk-btn').addEventListener('click', () => {
+            if (activeNPC !== null && !dialogueOpen) {
+                openDialogue(activeNPC);
+            }
+        });
+
+        document.getElementById('close-dialogue-btn').addEventListener('click', () => {
+            closeDialogue();
+        });
+
+        document.getElementById('acknowledge-btn').addEventListener('click', () => {
+            closeDialogue();
+        });
+
+        /* ==========================================================================
+           8. CORE GAMEPLAY MECHANICS & UPDATE LOOP
+           ========================================================================== */
+        const clock = new THREE.Clock();
+        let walkTimer = 0;
+
+        function updateGame() {
+            const delta = clock.getDelta();
+            
+            // 1. Resolve Motion Vectors
+            let moveX = 0;
+            let moveZ = 0;
+            const moveSpeed = 9;
+
+            if (!dialogueOpen) {
+                if (keys.w || keys.ArrowUp) moveZ = -1;
+                if (keys.s || keys.ArrowDown) moveZ = 1;
+                if (keys.a || keys.ArrowLeft) moveX = -1;
+                if (keys.d || keys.ArrowRight) moveX = 1;
+
+                // Handle Mobile Joystick Override
+                if (joystickActive) {
+                    moveX = joystickVector.x;
+                    moveZ = joystickVector.y;
+                }
+            }
+
+            // Normalise movement vectors
+            let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            if (mag > 0) {
+                moveX /= mag;
+                moveZ /= mag;
+
+                // Apply velocity and clamp values
+                const prevX = playerGroup.position.x;
+                const prevZ = playerGroup.position.z;
+                
+                playerGroup.position.x += moveX * moveSpeed * delta;
+                playerGroup.position.z += moveZ * moveSpeed * delta;
+
+                // Simple collision check against park boundaries (R = 42 max world boundary)
+                const distFromCenter = Math.sqrt(playerGroup.position.x * playerGroup.position.x + playerGroup.position.z * playerGroup.position.z);
+                if (distFromCenter > 42 || distFromCenter < 2) {
+                    // Revert to avoid escaping park or running inside centerpiece pedestal
+                    playerGroup.position.x = prevX;
+                    playerGroup.position.z = prevZ;
+                }
+
+                // Look towards motion vector direction
+                const angle = Math.atan2(moveX, moveZ);
+                playerGroup.rotation.y = angle;
+
+                // Procedural Step Sound Trigger
+                walkTimer += delta;
+                if (walkTimer > 0.32) {
+                    playChirp('step');
+                    walkTimer = 0;
+                }
+
+                // Animate player bobbing slightly up/down during walking
+                playerGroup.position.y = Math.sin(clock.getElapsedTime() * 12) * 0.15;
+            } else {
+                // Soft idle animation breathing
+                playerGroup.position.y = Math.sin(clock.getElapsedTime() * 3) * 0.05;
+            }
+
+            // 1.5 Particle System Updates
+            for (let i = activeParticles.length - 1; i >= 0; i--) {
+                const p = activeParticles[i];
+                p.life -= delta * p.decay;
+
+                p.mesh.position.x += p.vx * delta;
+                p.mesh.position.y += p.vy * delta;
+                p.mesh.position.z += p.vz * delta;
+
+                // Gravity pulling down confetti and fireworks
+                if (p.type === 4 || p.type === 5) {
+                    p.vy -= 10 * delta;
+                }
+
+                p.mesh.rotation.x += 4 * delta;
+                p.mesh.rotation.y += 4 * delta;
+                p.mesh.material.opacity = p.life;
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    activeParticles.splice(i, 1);
+                }
+            }
+
+            // 2. Animate Environmental Elements
+            // Spin and hover central magic portal crystal
+            crystal.rotation.y += 0.8 * delta;
+            crystal.rotation.x += 0.4 * delta;
+            crystal.position.y = 3.2 + Math.sin(clock.getElapsedTime() * 2) * 0.3;
+
+            // Animate each Stand/Booth decorations
+            booths.forEach(booth => {
+                booth.group.userData.sign.position.y = 5.2 + Math.sin(clock.getElapsedTime() * 3 + booth.id) * 0.12;
+            });
+
+            // Animate NPCs floating gently
+            npcs.forEach(npc => {
+                npc.group.position.y = Math.sin(clock.getElapsedTime() * 2.5 + npc.index) * 0.12;
+                npc.marker.position.y = 2.8 + Math.sin(clock.getElapsedTime() * 4 + npc.index) * 0.08;
+                npc.marker.rotation.y += 1.5 * delta;
+            });
+
+            // 3. Proximity Checking System
+            let nearestNPC = null;
+            let minDist = 4.5; // Interaction threshold radius
+
+            npcs.forEach(npc => {
+                const dist = playerGroup.position.distanceTo(npc.group.position);
+                if (dist < minDist) {
+                    nearestNPC = npc;
+                }
+            });
+
+            if (nearestNPC !== null) {
+                if (activeNPC === null) {
+                    activeNPC = nearestNPC;
+                    showInteractionPrompt(nearestNPC);
+                }
+            } else {
+                if (activeNPC !== null) {
+                    activeNPC = null;
+                    hideInteractionPrompt();
+                }
+            }
+
+            // 4. Smooth Camera Spring Arm following Player
+            const targetCamPos = new THREE.Vector3(
+                playerGroup.position.x,
+                playerGroup.position.y + 11,
+                playerGroup.position.z + 14
+            );
+            camera.position.lerp(targetCamPos, 0.08);
+            camera.lookAt(playerGroup.position);
+
+            // 5. Render Minimap
+            drawMinimap();
+        }
+
+        /* ==========================================================================
+           9. PROXIMITY DIALOGUE & USER INTERACTION ENGINE
+           ========================================================================== */
+        const interactPromptEl = document.getElementById('interaction-prompt');
+        const promptNPCNameEl = document.getElementById('prompt-npc-name');
+        const dialoguePanelEl = document.getElementById('dialogue-panel');
+        const npcNameEl = document.getElementById('npc-name');
+        const npcTitleEl = document.getElementById('npc-title');
+        const npcPortraitFaceEl = document.getElementById('npc-portrait-face');
+        const npcPortraitContainerEl = document.getElementById('npc-portrait-container');
+        const pillarBadgeEl = document.getElementById('pillar-id-badge');
+        const dialogueTargetBoxEl = document.getElementById('dialogue-target-box');
+        const dialogueTextEl = document.getElementById('dialogue-text');
+        const dialogueQuestsContainerEl = document.getElementById('dialogue-quests-container');
+
+        let typingTimeout = null;
+
+        function showInteractionPrompt(npc) {
+            promptNPCNameEl.innerText = npc.name;
+            interactPromptEl.classList.remove('hidden');
+        }
+
+        function hideInteractionPrompt() {
+            interactPromptEl.classList.add('hidden');
+        }
+
+        function openDialogue(npc) {
+            dialogueOpen = true;
+            hideInteractionPrompt();
+            playChirp('talk');
+
+            // Gather Pillar data corresponding to active NPC
+            const data = pillarData[npc.index];
+            
+            // Populating visual aesthetics matching the pillar's brand
+            npcNameEl.innerText = `${data.npcName} (Pillar Guard)`;
+            npcTitleEl.innerText = data.npcTitle;
+            npcPortraitFaceEl.innerText = data.npcIcon;
+            
+            npcPortraitContainerEl.style.borderColor = data.color;
+            npcPortraitContainerEl.style.boxShadow = `0 0 25px ${data.color}AA`;
+            
+            const badge = document.getElementById('npc-portrait-badge');
+            badge.innerText = `Pillar 0${data.id}`;
+            badge.style.backgroundColor = data.color;
+
+            pillarBadgeEl.innerText = `${data.name.toUpperCase()}`;
+            pillarBadgeEl.style.backgroundColor = data.color;
+
+            dialogueTargetBoxEl.innerHTML = `<span class="text-xs tracking-widest text-cyan-400 block mb-1">GOAL:</span> ${data.target}`;
+
+            // Trigger open transition animation (Fixed Screen layout)
+            dialoguePanelEl.classList.remove('hidden');
+            setTimeout(() => {
+                dialoguePanelEl.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            // Clear any lingering typesets
+            dialogueQuestsContainerEl.classList.add('hidden');
+            dialogueQuestsContainerEl.innerHTML = '';
+            dialogueTextEl.classList.add('cursor-blink');
+
+            // Start dialogue typewriter effect
+            typeString(data.greeting, () => {
+                // Done typing introductory greetings, populate the quest deliverables below
+                dialogueTextEl.classList.remove('cursor-blink');
+                
+                data.quests.forEach(q => {
+                    const qBox = document.createElement('div');
+                    qBox.className = "bg-slate-950/60 border-2 border-slate-800 p-4 rounded-2xl flex items-start gap-4";
+                    qBox.innerHTML = `
+                        <div class="w-6 h-6 rounded-lg bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 text-sm mt-0.5 shrink-0">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-100 leading-tight mb-1">${q.title}</h4>
+                            <p class="text-xs text-slate-400 leading-snug">${q.sub}</p>
+                        </div>
+                    `;
+                    dialogueQuestsContainerEl.appendChild(qBox);
+                });
+                dialogueQuestsContainerEl.classList.remove('hidden');
+            });
+        }
+
+        function typeString(text, callback) {
+            let index = 0;
+            dialogueTextEl.innerText = '';
+            
+            if (typingTimeout) clearInterval(typingTimeout);
+
+            typingTimeout = setInterval(() => {
+                if (index < text.length) {
+                    dialogueTextEl.innerText += text[index];
+                    if (index % 3 === 0) playChirp('type'); // subtle vintage click
+                    index++;
+                } else {
+                    clearInterval(typingTimeout);
+                    if (callback) callback();
+                }
+            }, 25);
+        }
+
+        function closeDialogue() {
+            if (activeNPC !== null) {
+                const data = pillarData[activeNPC.index];
+                // Trigger the unique visual explosion near the NPC!
+                triggerPillarEffect(
+                    activeNPC.group.position.x, 
+                    activeNPC.group.position.y + 1, 
+                    activeNPC.group.position.z, 
+                    data.color, 
+                    data.id
+                );
+            }
+            dialogueOpen = false;
+            playChirp('close');
+            
+            dialoguePanelEl.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => {
+                dialoguePanelEl.classList.add('hidden');
+            }, 300);
+
+            if (activeNPC !== null) {
+                showInteractionPrompt(activeNPC);
+            }
+        }
+
+        /* ==========================================================================
+           10. RADAR MINIMAP CANVAS RENDERER
+           ========================================================================== */
+        const minimapCanvas = document.getElementById('minimap-canvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+
+        function drawMinimap() {
+            minimapCtx.clearRect(0, 0, 128, 128);
+            const mid = 64;
+            const scale = 1.3; // Fit grid values into canvas layout boundaries nicely
+
+            // Center Ring Centerpiece
+            minimapCtx.beginPath();
+            minimapCtx.arc(mid, mid, 6, 0, Math.PI * 2);
+            minimapCtx.fillStyle = '#c084fc';
+            minimapCtx.fill();
+
+            // Draw Stands and NPCs
+            booths.forEach(booth => {
+                const bx = mid + (booth.x * scale);
+                const bz = mid + (booth.z * scale);
+
+                minimapCtx.beginPath();
+                minimapCtx.arc(bx, bz, 5, 0, Math.PI * 2);
+                minimapCtx.fillStyle = booth.color;
+                minimapCtx.fill();
+                minimapCtx.lineWidth = 1.5;
+                minimapCtx.strokeStyle = '#ffffff';
+                minimapCtx.stroke();
+            });
+
+            // Draw player position as pulsing neon yellow dot
+            const px = mid + (playerGroup.position.x * scale);
+            const pz = mid + (playerGroup.position.z * scale);
+            
+            minimapCtx.beginPath();
+            minimapCtx.arc(px, pz, 4, 0, Math.PI * 2);
+            minimapCtx.fillStyle = '#22d3ee';
+            minimapCtx.fill();
+        }
+
+        /* ==========================================================================
+           11. SCREEN RESIZING GUARD
+           ========================================================================== */
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        /* ==========================================================================
+           12. INITIALIZATION ON WINDOW LOAD
+           ========================================================================== */
+        window.onload = function () {
+            // Dismiss loader screen smoothly
+            setTimeout(() => {
+                const loader = document.getElementById('loading-screen');
+                loader.classList.add('opacity-0');
+                setTimeout(() => loader.remove(), 1000);
+            }, 1200);
+
+            // Execute Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                updateGame();
+                renderer.render(scene, camera);
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>
